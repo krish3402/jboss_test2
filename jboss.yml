@@ -1,34 +1,65 @@
- - hosts: jboss
-   gather_facts: true
-   remote_user: root
-   become: True
-   vars:
-     JBOSS_HOME: /root/jboss-eap-7.2
-   tasks:
+- hosts: all
+  gather_facts: true
+  remote_user: ubuntu
+  become: True
+  vars:
+    JBOSS_HOME: /home/ubuntu/jboss-eap-7.2
+    NEXUS: http://3.86.93.47:8080/nexus-latest/service/local/repositories/releases/content
+    ARTIFACTORTY: com/rns/app
+    NODE1: webapp
+    VERSION: 1.9
+
+  tasks:
       - name: nodes stop all
         shell: "{{item}}"
-        async: 50
-        poll: 25
         with_items:
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:9991 command=:shutdown &
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:10001 command=:shutdown &
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:10011 command=:shutdown &
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:10021 command=:shutdown &
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:10031 command=:shutdown &
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:10041 command=:shutdown &
-          - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:10051 command=:shutdown &
-        tags: stop
+           - nohup  {{JBOSS_HOME}}/bin/jboss-cli.sh --connect --controller=localhost:9991 command=:shutdown &
 
+        tags: stop
+      - pause:
+          minutes: 1
+      - name: Clean
+        file:
+          path: /home/ubuntu/jboss-eap-7.2
+          state: absent
+
+      - name: Download JBOSS
+        remote_user: ubuntu
+        git:
+          repo: https://github.com/krish3402/jboss-7.2.git
+          dest: /home/ubuntu/jboss-eap-7.2
+
+      - name: Create Add-User
+        shell: "{{item}}"
+        with_items:
+           - nohup sh {{JBOSS_HOME}}/bin/add-user.sh admin admin@123 --silent
+      - name: Create Add-User
+        shell: "{{item}}"
+        with_items:
+           - nohup sh {{JBOSS_HOME}}/bin/add-user.sh jboss jboss --silent
+
+      - name: Create Jboss instance
+        copy: src={{item.src}} dest={{item.dest}} remote_src=yes
+        with_items:
+           - { src: '{{JBOSS_HOME}}/standalone/', dest: '{{JBOSS_HOME}}/node1' }
+
+      - name: Download war files
+        get_url: url={{item}} dest=/tmp
+        with_items:
+            - "{{NEXUS}}/{{ARTIFACTORTY}}/{{VERSION}}/{{NODE1}}-{{VERSION}}.war"
+                #        -  "{{NEXUS}}/{{ARTIFACTORTY}}/{{NODE1}}-{{VERSION}}.war"
+      - name: deploy war files
+        copy: src={{item.src}} dest={{item.dest}} remote_src=yes
+        with_items:
+           - { src: '/tmp/{{NODE1}}-{{VERSION}}.war', dest: '{{JBOSS_HOME}}/node1/deployments/{{NODE1}}.war' }
+      - name: Backup war files
+        command: mv {{item}}
+        with_items:
+           -  "/tmp/{{NODE1}}-{{VERSION}}.war /tmp/{{NODE1}}-{{VERSION}}.war_bkp"
       - name: all nodes start
         shell: "{{item}}"
         async: 100
         poll: 25
         with_items:
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node1 -Djboss.server.base.dir={{JBOSS_HOME}}/node1 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node1/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=1 &
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node2 -Djboss.server.base.dir={{JBOSS_HOME}}/node2 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node2/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=11 &
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node3 -Djboss.server.base.dir={{JBOSS_HOME}}/node3 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node3/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=21 &
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node4 -Djboss.server.base.dir={{JBOSS_HOME}}/node4 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node4/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=31 &
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node5 -Djboss.server.base.dir={{JBOSS_HOME}}/node5 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node5/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=41 &
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node6 -Djboss.server.base.dir={{JBOSS_HOME}}/node6 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node6/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=51 &
-          - nohup sh {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node7 -Djboss.server.base.dir={{JBOSS_HOME}}/node7 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node7/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=61 &
+          - nohup  {{JBOSS_HOME}}/bin/standalone.sh -Djboss.node.name=node1 -Djboss.server.base.dir={{JBOSS_HOME}}/node1 -Dorg.jboss.boot.log.file={{JBOSS_HOME}}/node1/configuration/logging.properties -c standalone.xml -b 0.0.0.0 -bmanagement 0.0.0.0 -Djboss.socket.binding.port-offset=1 &
         tags: start
