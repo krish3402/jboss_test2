@@ -5,7 +5,7 @@
   vars:
     JBOSS_HOME: /home/ubuntu/jboss-eap-7.2
     NEXUS: http://3.86.93.47:8080/nexus-latest/service/local/repositories/releases/content
-    ARTIFACTORTY: com/rns/app
+    ARTIFACTORTY: com/rns/app/webapp
     NODE1: webapp
     VERSION: 2.2
 
