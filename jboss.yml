@@ -7,7 +7,7 @@
     NEXUS: http://3.86.93.47:8080/nexus-latest/service/local/repositories/releases/content
     ARTIFACTORTY: com/rns/app
     NODE1: webapp
-    VERSION: 1.9
+    VERSION: 2.2
 
   tasks:
       - name: nodes stop all
